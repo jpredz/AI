@@ -1,0 +1,68 @@
+#Python
+# Import necessary libraries
+import pandas as pd
+
+# Define your trading algorithm
+def trading_algorithm(data):
+    # Perform data analysis and generate trading signals
+    # Example: Generate buy signal when the current price crosses above the moving average
+    data['MA'] = data['Close'].rolling(window=20).mean()
+    data['Signal'] = 0
+    data.loc[data['Close'] > data['MA'], 'Signal'] = 1
+    data.loc[data['Close'] < data['MA'], 'Signal'] = -1
+    
+    # Apply risk management techniques
+    capital = 100000  # Initial capital
+    risk_per_trade = 0.02  # Risk 2% of capital per trade
+    position = 0  # 0 represents no position, 1 represents long position, -1 represents short position
+    trades = []
+    stop_loss_factor = 0.95  # Stop-loss factor as a percentage of entry price
+    reward_to_risk_ratio = 3  # Minimum reward-to-risk ratio
+    trailing_stop_factor = 0.98  # Trailing stop factor as a percentage of highest price reached
+    
+    for i in range(1, len(data)):
+        if data['Signal'][i] == 1 and position <= 0:  # Generate a buy signal
+            entry_price = data['Close'][i]
+            stop_loss_price = entry_price * stop_loss_factor
+            take_profit_price = entry_price * (1 + (reward_to_risk_ratio * stop_loss_factor))
+            shares_to_buy = (risk_per_trade * capital) / (entry_price - stop_loss_price)
+            trades.append(('Buy', data.index[i], entry_price, shares_to_buy, stop_loss_price, take_profit_price))
+            position = 1
+        elif data['Signal'][i] == -1 and position >= 0:  # Generate a sell signal
+            entry_price = data['Close'][i]
+            stop_loss_price = entry_price * (1 + stop_loss_factor)
+            take_profit_price = entry_price * (1 - (reward_to_risk_ratio * stop_loss_factor))
+            shares_to_sell = (risk_per_trade * capital) / (stop_loss_price - entry_price)
+            trades.append(('Sell', data.index[i], entry_price, shares_to_sell, stop_loss_price, take_profit_price))
+            position = -1
+        else:
+            trades.append(('Hold', data.index[i], data['Close'][i], 0, 0, 0))
+    
+    # Apply trailing stop-orders
+    highest_price = 0
+    for i in range(1, len(trades)):
+        if trades[i][0] == 'Hold' and trades[i-1][0] in ['Buy', 'Sell']:
+            if trades[i][2] > highest_price:
+                highest_price = trades[i][2]
+            trailing_stop_price = highest_price * trailing_stop_factor
+            if (trades[i][0] == 'Hold' and trades[i-1][0] == 'Buy' and trades[i][2] < trailing_stop_price) or (trades[i][0] == 'Hold' and trades[i-1][0] == 'Sell' and trades[i][2] > trailing_stop_price):
+                trades[i] = ('Sell', trades[i][1], trades[i][2], trades[i][3], 0, 0)
+    
+    # Generate trade report
+    trade_report = pd.DataFrame(trades, columns=['Action', 'Date', 'Price', 'Shares', 'Stop Loss', 'Take Profit'])
+    
+    return trade_report
+
+# Example usage
+# Load historical price data into a DataFrame
+price_data = pd.read_csv('price_data.csv')
+
+# Preprocess and clean the data if necessary
+
+# Apply the trading algorithm
+trade_report = trading_algorithm(price_data)
+
+# Analyze the trade report and evaluate performance
+# You can calculate metrics such as profit, loss, win rate, etc.
+
+# Further analysis and optimization of the algorithm can be done based on the results.
